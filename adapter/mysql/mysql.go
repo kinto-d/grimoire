@@ -14,6 +14,9 @@ package mysql
 
 import (
 	db "database/sql"
+	"strings"
+
+	"github.com/tsenart/nap"
 
 	"github.com/Fs02/go-paranoid"
 	"github.com/Fs02/grimoire"
@@ -45,6 +48,26 @@ func Open(dsn string) (*Adapter, error) {
 		},
 	}
 	adapter.DB, err = db.Open("mysql", dsn)
+
+	return adapter, err
+}
+
+// OpenWithReplication mysql connection using dsns.
+func OpenWithReplication(dsns []string) (*Adapter, error) {
+	var err error
+	adapter := &Adapter{
+		Adapter: &sql.Adapter{
+			Config: &sql.Config{
+				Placeholder:    "?",
+				EscapeChar:     "`",
+				UseReplication: true,
+				IncrementFunc:  incrementFunc,
+				ErrorFunc:      errorFunc,
+			},
+		},
+	}
+
+	adapter.DBReplication, err = nap.Open("mysql", strings.Join(dsns, ";"))
 
 	return adapter, err
 }
