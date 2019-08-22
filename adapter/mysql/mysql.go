@@ -49,6 +49,29 @@ func Open(dsn string) (*Adapter, error) {
 	return adapter, err
 }
 
+// OpenWithSlave build mysql connection with master-slave topology
+func OpenWithSlave(masterdsn, slavedsn string) (*Adapter, []error) {
+	errs := make([]error, 2)
+
+	adapter := &Adapter{
+		Adapter: &sql.Adapter{
+			Config: &sql.Config{
+				Placeholder: "?",
+				EscapeChar:  "`",
+				// force read queries using slave database
+				ReadUsingSlave: true,
+				IncrementFunc:  incrementFunc,
+				ErrorFunc:      errorFunc,
+			},
+		},
+	}
+
+	adapter.DB, errs[0] = db.Open("mysql", masterdsn)
+	adapter.DBSlave, errs[1] = db.Open("mysql", slavedsn)
+
+	return adapter, errs
+}
+
 func incrementFunc(adapter sql.Adapter) int {
 	var variable string
 	var increment int

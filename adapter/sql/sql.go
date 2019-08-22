@@ -16,6 +16,7 @@ type Config struct {
 	Ordinal             bool
 	InsertDefaultValues bool
 	EscapeChar          string
+	ReadUsingSlave      bool
 	ErrorFunc           func(error) error
 	IncrementFunc       func(Adapter) int
 }
@@ -24,6 +25,7 @@ type Config struct {
 type Adapter struct {
 	Config    *Config
 	DB        *sql.DB
+	DBSlave   *sql.DB
 	Tx        *sql.Tx
 	savepoint int
 }
@@ -33,6 +35,15 @@ var _ grimoire.Adapter = (*Adapter)(nil)
 // Close mysql connection.
 func (adapter *Adapter) Close() error {
 	return adapter.DB.Close()
+}
+
+// CloseWithSlave mysql connection master-slave topology
+func (adapter *Adapter) CloseWithSlave() []error {
+	errs := make([]error, 2)
+
+	errs[0] = adapter.DB.Close()
+	errs[1] = adapter.DBSlave.Close()
+	return errs
 }
 
 // All retrieves all record that match the query.
@@ -158,7 +169,11 @@ func (adapter *Adapter) Query(out interface{}, statement string, args []interfac
 	if adapter.Tx != nil {
 		rows, err = adapter.Tx.Query(statement, args...)
 	} else {
-		rows, err = adapter.DB.Query(statement, args...)
+		if adapter.Config.ReadUsingSlave {
+			rows, err = adapter.DBSlave.Query(statement, args...)
+		} else {
+			rows, err = adapter.DB.Query(statement, args...)
+		}
 	}
 
 	go grimoire.Log(loggers, statement, time.Since(start), err)
