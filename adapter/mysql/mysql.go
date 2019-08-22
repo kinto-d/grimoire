@@ -67,7 +67,9 @@ func OpenWithReplication(dsns []string) (*Adapter, error) {
 		},
 	}
 
-	adapter.DBReplication, err = nap.Open("mysql", strings.Join(dsns, ";"))
+	// first dsn assumed to be the master, and others is slaves
+	rawDsns := strings.Join(dsns, ";")
+	adapter.DBReplication, err = nap.Open("mysql", rawDsns)
 
 	return adapter, err
 }
